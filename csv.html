@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>力導向圖</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <style>
+    .links line {
+      stroke: #999;
+      stroke-opacity: 0.6;
+    }
+
+    .nodes circle {
+      stroke: #fff;
+      stroke-width: 1.5px;
+    }
+
+    .node-label {
+      font-size: 12px;
+      text-anchor: middle;
+      fill: #333;
+    }
+
+    svg {
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // 定義數據
+    const data = [
+      { aggressor: "其他", aggressorGender: "男性", location: "校外", place: "其他", victim: "未知", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "體育器材室", victim: "國中", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "其他", victim: "國中", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "教室", victim: "未知", victimGender: "未知" },
+      { aggressor: "學生", aggressorGender: "男性", location: "校園內", place: "運動場", victim: "國中", victimGender: "男性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "教室", victim: "高中", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "教室", victim: "專科", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "教室", victim: "高中", victimGender: "未知" },
+      { aggressor: "行政人員", aggressorGender: "男性", location: "未知", place: "未知", victim: "小學", victimGender: "女性" },
+      { aggressor: "其他", aggressorGender: "男性", location: "校外", place: "其他", victim: "未知", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "其他", victim: "高中", victimGender: "女性" },
+      { aggressor: "教師", aggressorGender: "男性", location: "校園內", place: "辦公室", victim: "小學", victimGender: "女性" },
+      { aggressor: "學生", aggressorGender: "女性", location: "校園內", place: "宿舍", victim: "大學", victimGender: "女性" }
+    ];
+
+    // 提取唯一值
+    const aggressors = [...new Set(data.map(d => d.aggressor))];
+    const aggressorGenders = [...new Set(data.map(d => d.aggressorGender))];
+    const locations = [...new Set(data.map(d => d.location))];
+    const places = [...new Set(data.map(d => d.place))];
+    const victims = [...new Set(data.map(d => d.victim))];
+    const victimGenders = [...new Set(data.map(d => d.victimGender))];
+
+    // 建立節點數據
+    const nodes = [
+      ...aggressors.map(aggressor => ({ group: 1, id: `aggressor-${aggressor}`, name: aggressor })),
+      ...aggressorGenders.map(aggressorGender => ({ group: 1, id: `aggressorGender-${aggressorGender}`, name: aggressorGender })),
+      ...locations.map(location => ({ group: 2, id: `location-${location}`, name: location })),
+      ...places.map(place => ({ group: 2, id: `place-${place}`, name: place })),
+      ...victims.map(victim => ({ group: 3, id: `victim-${victim}`, name: victim })),
+      ...victimGenders.map(victimGender => ({ group: 3, id: `victimGender-${victimGender}`, name: victimGender }))
+    ];
+
+// 創建連線數據，並確保每對節點只有一條連線，並計算次數
+const linkCounts = new Map();
+    const links = [];
+
+    data.forEach(d => {
+      const pairs = [
+        { source: `aggressor-${d.aggressor}`, target: `aggressorGender-${d.aggressorGender}` },
+        { source: `aggressorGender-${d.aggressorGender}`, target: `location-${d.location}` },
+        { source: `location-${d.location}`, target: `place-${d.place}` },
+        { source: `place-${d.place}`, target: `victim-${d.victim}` },
+        { source: `victim-${d.victim}`, target: `victimGender-${d.victimGender}` }
+      ];
+
+      pairs.forEach(pair => {
+        const key = `${pair.source}-${pair.target}`;
+        if (!linkCounts.has(key)) {
+          linkCounts.set(key, { ...pair, value: 0 });
+        }
+        linkCounts.get(key).value += 1;
+      });
+    });
+
+    linkCounts.forEach(link => {
+      links.push(link);
+    });
+
+
+    // 初始化視窗大小
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    // 設置力導向佈局
+    const simulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id))
+      .force("charge", d3.forceManyBody().strength(-1000))
+      .force("x", d3.forceX())
+      .force("y", d3.forceY())
+      .force("center", d3.forceCenter(width / 2, height / 2)); // 添加 forceCenter 力場
+
+
+    // 建立 SVG 畫布
+    const svg = d3.select("body")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    // 定義箭頭標記
+    svg.append("defs")
+      .append("marker")
+      .attr("id", "arrowhead")
+      .attr("viewBox", "-10 -10 20 20")
+      .attr("refX", 19)
+      .attr("refY", 0)
+      .attr("orient", "auto")
+      .attr("markerWidth", 7)
+      .attr("markerHeight", 7)
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5");
+
+    // 繪製連線
+    const link = svg.append("g")
+      .attr("class", "links")
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("stroke-width", d => d.value / 0.65) // 連線粗細根據自身 value 值
+      .attr("marker-end", "url(#arrowhead)");
+    
+   
+      
+    // 拖動行為
+    const drag = simulation => {
+      function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+
+      function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
+
+      function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
+
+      return d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended);
+    };
+
+    // 繪製節點
+    const node = svg.append("g")
+      .attr("class", "nodes")
+      .selectAll("circle")
+      .data(nodes)
+      .join("circle")
+      .attr("r", 10)
+      .attr("fill", d => d.group === 1 ? "lightblue" : d.group === 2 ? "lightgreen" : "pink")
+      .call(drag(simulation));
+
+    // 添加文字標籤
+    const label = svg.append("g")
+      .attr("class", "labels")
+      .selectAll("text")
+      .data(nodes)
+      .join("text")
+      .attr("dy", -3)
+      .text(d => d.name);
+
+    // 更新力導向佈局
+    simulation.on("tick", () => {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+      node
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+
+      label
+        .attr("x", d => d.x)
+        .attr("y", d => d.y);
+    });
+
+        // 監聽視窗大小變化
+        window.addEventListener('resize', () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+
+      // 調整 SVG 畫布大小
+      svg.attr("width", width).attr("height", height);
+
+      // 調整力場參數
+      simulation.force("center")
+        .x(width / 2)
+        .y(height / 2);
+
+      // 重新模擬力導向佈局
+      simulation.alpha(0.5).restart();
+    });
+
+  </script>
+</body>
+</html>
