@@ -56,6 +56,27 @@
     select:hover {
       background-color: #2980b9;
     }
+  
+    .tooltip {
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 10px;
+      font-size: 12px;
+      max-width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      pointer-events: auto;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .tooltip h4 {
+      margin-top: 0;
+      margin-bottom: 5px;
+    }
+    .tooltip p {
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -195,16 +216,16 @@
 
     // 建立節點數據
     const nodes = [
-      ...aggressors.map(aggressor => ({ group: 1, id: `aggressor-${aggressor}`, name: aggressor })),
-      ...aggressorGenders.map(aggressorGender => ({ group: 1, id: `aggressorGender-${aggressorGender}`, name: aggressorGender })),
-      ...locations.map(location => ({ group: 2, id: `location-${location}`, name: location })),
-      ...places.map(place => ({ group: 2, id: `place-${place}`, name: place })),
-      ...victims.map(victim => ({ group: 3, id: `victim-${victim}`, name: victim })),
-      ...victimGenders.map(victimGender => ({ group: 3, id: `victimGender-${victimGender}`, name: victimGender }))
+      ...aggressors.map(aggressor => ({ group: 1, id: `aggressor-${aggressor}`, name: aggressor, type: "加害者" })),
+      ...aggressorGenders.map(aggressorGender => ({ group: 1, id: `aggressorGender-${aggressorGender}`, name: aggressorGender, type: "加害者性別" })),
+      ...locations.map(location => ({ group: 2, id: `location-${location}`, name: location, type: "侵害類型" })),
+      ...places.map(place => ({ group: 2, id: `place-${place}`, name: place, type: "侵害行為" })),
+      ...victims.map(victim => ({ group: 3, id: `victim-${victim}`, name: victim, type: "受害者" })),
+      ...victimGenders.map(victimGender => ({ group: 3, id: `victimGender-${victimGender}`, name: victimGender, type: "受害者性別" }))
     ];
 
-// 創建連線數據，並確保每對節點只有一條連線，並計算次數
-const linkCounts = new Map();
+    // 創建連線數據，並確保每對節點只有一條連線，並計算次數
+    const linkCounts = new Map();
     const links = [];
 
     data.forEach(d => {
@@ -219,16 +240,16 @@ const linkCounts = new Map();
       pairs.forEach(pair => {
         const key = `${pair.source}-${pair.target}`;
         if (!linkCounts.has(key)) {
-          linkCounts.set(key, { ...pair, value: 0 });
+          linkCounts.set(key, { ...pair, value: 0, cases: [] });
         }
         linkCounts.get(key).value += 1;
+        linkCounts.get(key).cases.push(d);
       });
     });
 
     linkCounts.forEach(link => {
       links.push(link);
     });
-
 
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -253,7 +274,7 @@ const linkCounts = new Map();
       .force("link", d3.forceLink(links).id(d => d.id).distance(150))
       .force("charge", d3.forceManyBody().strength(-500))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collide", d3.forceCollide().radius(30)); // 添加碰撞力以避免节点重叠
+      .force("collide", d3.forceCollide().radius(30));
 
     const link = g.append("g")
       .attr("class", "links")
@@ -281,15 +302,88 @@ const linkCounts = new Map();
       .text(d => d.name)
       .style("text-anchor", "middle")
       .style("fill", "#333")
-      .style("text-shadow", "0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff"); // 添加文字阴影以增加可读性
+      .style("text-shadow", "0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff");
+
+    // 創建工具提示
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0);
+
+    // 使用防抖函數來優化工具提示的顯示
+    const debounce = (func, wait) => {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    };
+
+    const showTooltip = debounce((event, d) => {
+      tooltip.transition()
+        .duration(200)
+        .style("opacity", .9);
+      tooltip.html(`<h4>${d.name}</h4><p>類型: ${d.type}</p>`)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 10) + "px");
+    }, 100);
+
+    const showLinkTooltip = debounce((event, d) => {
+      let content = `<h4>相關案件: ${d.value}</h4>`;
+      d.cases.forEach((case_, index) => {
+        if (index < 5) {  // 只顯示前5個案例
+          content += `<p>${case_.note}</p>`;
+        }
+      });
+      if (d.cases.length > 5) {
+        content += `<p>...及其他 ${d.cases.length - 5} 個案例</p>`;
+      }
+      tooltip.transition()
+        .duration(200)
+        .style("opacity", .9);
+      tooltip.html(content)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 10) + "px");
+    }, 100);
 
     node.on("mouseover", function(event, d) {
       d3.select(this).attr("r", 8);
+      showTooltip(event, d);
     }).on("mouseout", function() {
       d3.select(this).attr("r", 5);
+      hideTooltip();
     });
 
+    link.on("mouseover", function(event, d) {
+      d3.select(this).attr("stroke-width", Math.sqrt(d.value) + 2);
+      showLinkTooltip(event, d);
+    }).on("mouseout", function(event, d) {
+      d3.select(this).attr("stroke-width", Math.sqrt(d.value));
+      hideTooltip();
+    });
+
+    function hideTooltip() {
+      tooltip.transition()
+        .duration(500)
+        .style("opacity", 0);
+    }
+
+    // 使用requestAnimationFrame來優化更新
+    let ticking = false;
     simulation.on("tick", () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updatePositions();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+
+    function updatePositions() {
       link
         .attr("x1", d => d.source.x)
         .attr("y1", d => d.source.y)
@@ -303,7 +397,7 @@ const linkCounts = new Map();
       label
         .attr("x", d => d.x)
         .attr("y", d => d.y);
-    });
+    }
 
     d3.select("#zoomIn").on("click", () => {
       svg.transition().call(zoom.scaleBy, 1.5);
@@ -349,12 +443,27 @@ const linkCounts = new Map();
         .on("end", dragended);
     }
 
-    window.addEventListener('resize', () => {
+    // 使用節流函數來優化resize事件處理
+    function throttle(func, limit) {
+      let inThrottle;
+      return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+          func.apply(context, args);
+          inThrottle = true;
+          setTimeout(() => inThrottle = false, limit);
+        }
+      }
+    }
+
+    window.addEventListener('resize', throttle(() => {
       width = window.innerWidth;
       height = window.innerHeight;
       svg.attr("width", width).attr("height", height);
       simulation.force("center", d3.forceCenter(width / 2, height / 2)).alpha(0.3).restart();
-    });
+    }, 100));
+
   </script>
 </body>
 </html>
