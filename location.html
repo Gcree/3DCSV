@@ -5,6 +5,9 @@
   <title>發生地點
   </title>
   <script src="https://d3js.org/d3.v6.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
@@ -302,23 +305,46 @@
 
     const g = svg.append("g");
 
-        const zoom = d3.zoom()
-    .scaleExtent([1, 1])  // 将缩放范围限制在1，effectively禁用缩放
-    .on("zoom", (event) => {
-      g.attr("transform", event.transform);
-    });
-  
-  svg.call(zoom);
-  
-  // 禁用鼠标滚轮缩放
-  svg.on('wheel.zoom', (event) => {
-    if (event.ctrlKey || event.metaKey) {
-      event.preventDefault();
-    }
+     // 定义缩放范围
+const minZoom = 0.5;
+const maxZoom = 2;
+
+// 创建缩放行为
+const zoom = d3.zoom()
+  .scaleExtent([minZoom, maxZoom])
+  .on("zoom", (event) => {
+    g.attr("transform", event.transform);
   });
-  
-  // 禁用双击缩放
-  svg.on('dblclick.zoom', null);
+
+svg.call(zoom);
+
+// 禁用鼠标滚轮缩放
+svg.on('wheel.zoom', (event) => {
+  if (event.ctrlKey || event.metaKey) {
+    event.preventDefault();
+  }
+});
+
+// 禁用双击缩放
+svg.on('dblclick.zoom', null);
+
+// 缩放按钮功能
+function zoomIn() {
+  svg.transition().call(zoom.scaleBy, 1.2);
+}
+
+function zoomOut() {
+  svg.transition().call(zoom.scaleBy, 0.8);
+}
+
+function resetZoom() {
+  svg.transition().call(zoom.transform, d3.zoomIdentity);
+}
+
+// 假设您有相应的HTML按钮，您需要为它们添加事件监听器
+document.getElementById('zoomIn').addEventListener('click', zoomIn);
+document.getElementById('zoomOut').addEventListener('click', zoomOut);
+document.getElementById('resetZoom').addEventListener('click', resetZoom);
 
     const color = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -340,7 +366,7 @@
       .selectAll("circle")
       .data(nodes)
       .join("circle")
-      .attr("r", 5)
+      .attr("r", 7)
       .attr("fill", d => color(d.group))
       .call(drag(simulation));
 
@@ -402,10 +428,10 @@
     }, 100);
 
     node.on("mouseover", function(event, d) {
-      d3.select(this).attr("r", 8);
+      d3.select(this).attr("r", 9);
       showTooltip(event, d);
     }).on("mouseout", function() {
-      d3.select(this).attr("r", 5);
+      d3.select(this).attr("r", 7);
       hideTooltip();
     });
 
