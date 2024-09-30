@@ -13,14 +13,22 @@
       -moz-user-select: none;
       -ms-user-select: none;
     }
+    body:active {
+        cursor: grabbing;  /* 當點擊並拖曳時，顯示 grabbing 狀態 */
+      }
     .links line {
       stroke: #999;
       stroke-opacity: 0.6;
     }
     .nodes circle {
-      stroke: #fff;
-      stroke-width: 1.5px;
-    }
+        stroke: #fff;
+        stroke-width: 1.5px;
+        cursor: pointer;  /* 當指到點的時候游標變成 pointer */
+      }
+      
+      .nodes circle:active {
+        cursor: grab;  /* 開始拖曳時游標變成 grab */
+      }
     .node-label {
       font-size: 10px;
       font-family: Arial, sans-serif;
@@ -265,12 +273,22 @@
     const g = svg.append("g");
 
     const zoom = d3.zoom()
-      .scaleExtent([0.1, 10])
-      .on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      });
-
-    svg.call(zoom);
+    .scaleExtent([1, 1])  // 将缩放范围限制在1，effectively禁用缩放
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    });
+  
+  svg.call(zoom);
+  
+  // 禁用鼠标滚轮缩放
+  svg.on('wheel.zoom', (event) => {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+    }
+  });
+  
+  // 禁用双击缩放
+  svg.on('dblclick.zoom', null);
 
     const color = d3.scaleOrdinal(d3.schemeCategory10);
 
