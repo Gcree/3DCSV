@@ -302,13 +302,23 @@
 
     const g = svg.append("g");
 
-    const zoom = d3.zoom()
-      .scaleExtent([0.1, 10])
-      .on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      });
-
-    svg.call(zoom);
+        const zoom = d3.zoom()
+    .scaleExtent([1, 1])  // 将缩放范围限制在1，effectively禁用缩放
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    });
+  
+  svg.call(zoom);
+  
+  // 禁用鼠标滚轮缩放
+  svg.on('wheel.zoom', (event) => {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+    }
+  });
+  
+  // 禁用双击缩放
+  svg.on('dblclick.zoom', null);
 
     const color = d3.scaleOrdinal(d3.schemeCategory10);
 
