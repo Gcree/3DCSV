@@ -14,6 +14,9 @@
       -moz-user-select: none;
       -ms-user-select: none;
     }
+     body:active {
+        cursor: grabbing;  /* 當點擊並拖曳時，顯示 grabbing 狀態 */
+      }
     .links line {
       stroke: #999;
       stroke-opacity: 0.6;
@@ -21,7 +24,11 @@
     .nodes circle {
       stroke: #fff;
       stroke-width: 1.5px;
+      cursor: pointer;  /* 當指到點的時候游標變成 pointer */
     }
+    .nodes circle:active {
+      cursor: grab;  /* 開始拖曳時游標變成 grab */
+      }
     .node-label {
       font-size: 10px;
       font-family: Arial, sans-serif;
